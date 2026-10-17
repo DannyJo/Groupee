@@ -1,0 +1,13 @@
+package-as: Groupee
+
+# The addon lives in Groupee/; package its contents as the Groupee folder.
+move-folders:
+  Groupee/Groupee: Groupee
+
+manual-changelog:
+  filename: Groupee/CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - assets
+  - LICENSE

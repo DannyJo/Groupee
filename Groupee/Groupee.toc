@@ -5,6 +5,7 @@
 ## Version: 0.2.0
 ## IconTexture: Interface\Icons\Spell_Holy_PrayerOfFortitude
 ## Category: Social
+## X-Curse-Project-ID: 1750660
 ## AddonCompartmentFunc: Groupee_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Groupee_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Groupee_OnAddonCompartmentLeave
