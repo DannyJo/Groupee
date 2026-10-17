@@ -6,11 +6,15 @@ local PREFIX = "GROUPEE"
 local PROTOCOL = 1
 local SEND_DELAY = 1        -- seconds to coalesce bursts of XP events into one message
 local MAX_PARTY = 4
+local XP_RATE_WINDOW = 600  -- XP/hour is averaged over this many seconds
+local XP_RATE_MIN = 180     -- seconds to watch a member before showing their XP/hour
 
 local BAR_WIDTH, BAR_HEIGHT, BAR_GAP, PADDING = 180, 16, 3, 6
 
-local data = {}             -- [fullName] = { level, cur, max, rested, time }
-local sendPending = false
+local data = {}             -- [fullName] = { level, cur, max, rested, time, start, gains }
+local versions = {}         -- [fullName] = { version, proto }
+local warned = {}           -- [fullName] = true once told they can't share XP with us
+local sendPending, versionPending = false, false
 
 ---------------------------------------------------------------------------
 -- Compatibility shims (Forever / Retail clients vary in API surface)
@@ -18,6 +22,10 @@ local sendPending = false
 
 local SendAddonMessage = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
 local RegisterPrefix = (C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix) or RegisterAddonMessagePrefix
+local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+
+local VERSION = GetAddOnMetadata(ADDON_NAME, "Version") or "0"
+local newestVersion = VERSION   -- highest version seen in the group this session
 
 local function GetRealm()
     return (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName():gsub("%s", ""))
@@ -37,6 +45,20 @@ local function UnitFullName(unit)
     return FullName(name, realm)
 end
 
+local function ShortName(fullName)
+    return (fullName:gsub("%-.*", ""))
+end
+
+-- Compares dotted version strings ("0.10.1") numerically; returns -1, 0 or 1.
+local function CompareVersions(a, b)
+    local pa, pb = { strsplit(".", a) }, { strsplit(".", b) }
+    for i = 1, math.max(#pa, #pb) do
+        local x, y = tonumber(pa[i]) or 0, tonumber(pb[i]) or 0
+        if x ~= y then return x < y and -1 or 1 end
+    end
+    return 0
+end
+
 local function GroupChannel()
     if IsInGroup and LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
         return "INSTANCE_CHAT"
@@ -51,6 +73,9 @@ end
 -- Messaging
 --   XP:<proto>:<level>:<cur>:<max>:<rested>   our current progress
 --   REQ:<proto>                               ask everyone to send theirs
+--   VER:<proto>:<version>                     our addon version
+-- VER and REQ are handled whatever their protocol, so clients that can't
+-- share XP can still tell each other which one needs updating.
 ---------------------------------------------------------------------------
 
 local function Send(msg)
@@ -62,6 +87,10 @@ end
 
 local function SendXP()
     sendPending = false
+    if versionPending then
+        versionPending = false
+        Send(string.format("VER:%d:%s", PROTOCOL, VERSION))
+    end
     local max = UnitXPMax("player") or 0
     local disabled = IsXPUserDisabled and IsXPUserDisabled()
     if disabled then max = 0 end
@@ -69,7 +98,8 @@ local function SendXP()
         max > 0 and UnitXP("player") or 0, max, GetXPExhaustion() or 0))
 end
 
-local function QueueSendXP()
+local function QueueSendXP(withVersion)
+    if withVersion then versionPending = true end
     if sendPending then return end
     sendPending = true
     C_Timer.After(SEND_DELAY, SendXP)
@@ -77,25 +107,81 @@ end
 
 local UpdateDisplay -- forward declaration
 
+-- XP gained between two updates, counting across a level-up. Nil if it can't tell.
+local function XPGained(old, level, cur)
+    if level == old.level then
+        if cur >= old.cur then return cur - old.cur end
+    elseif level == old.level + 1 and old.max > 0 then
+        return old.max - old.cur + cur
+    end
+end
+
+local function RecordXP(name, level, cur, max, rested)
+    local now = GetTime()
+    local info = data[name]
+    if not info then
+        info = { start = now, gains = {} }
+        data[name] = info
+    else
+        local gained = XPGained(info, level, cur)
+        if not gained then
+            info.start, info.gains = now, {}
+        elseif gained > 0 then
+            table.insert(info.gains, { time = now, xp = gained })
+        end
+        while info.gains[1] and now - info.gains[1].time > XP_RATE_WINDOW do
+            table.remove(info.gains, 1)
+        end
+    end
+    info.level, info.cur, info.max, info.rested, info.time = level, cur, max, rested, now
+end
+
+-- XP per hour over the last XP_RATE_WINDOW seconds, or nil until we've watched long enough.
+local function XPPerHour(info)
+    local now = GetTime()
+    local span = math.min(XP_RATE_WINDOW, now - info.start)
+    if span < XP_RATE_MIN then return nil end
+    local total = 0
+    for _, gain in ipairs(info.gains) do
+        if now - gain.time <= XP_RATE_WINDOW then total = total + gain.xp end
+    end
+    return total / span * 3600
+end
+
+local function OnVersion(sender, proto, version)
+    versions[sender] = { version = version, proto = proto }
+    local newer = CompareVersions(version, newestVersion) > 0
+    if newer then newestVersion = version end
+
+    if proto ~= PROTOCOL then
+        if not warned[sender] then
+            warned[sender] = true
+            print(string.format("Groupee: %s runs Groupee %s, which can't share XP with your %s. %s",
+                ShortName(sender), version, VERSION,
+                proto > PROTOCOL and "Please update Groupee." or "They need to update Groupee."))
+        end
+    elseif newer then
+        print(string.format("Groupee: version %s is available, you have %s.", version, VERSION))
+    end
+    UpdateDisplay()
+end
+
 local function OnAddonMessage(prefix, msg, _, sender)
     if prefix ~= PREFIX then return end
     sender = FullName(sender)
     if sender == UnitFullName("player") then return end
 
     local kind, proto, a, b, c, d = strsplit(":", msg)
-    if tonumber(proto) ~= PROTOCOL then return end
+    proto = tonumber(proto)
+    if not proto then return end
 
-    if kind == "XP" then
-        data[sender] = {
-            level = tonumber(a) or 0,
-            cur = tonumber(b) or 0,
-            max = tonumber(c) or 0,
-            rested = tonumber(d) or 0,
-            time = GetTime(),
-        }
-        UpdateDisplay()
+    if kind == "VER" and a then
+        OnVersion(sender, proto, a)
     elseif kind == "REQ" then
-        QueueSendXP()
+        QueueSendXP(true)
+    elseif kind == "XP" and proto == PROTOCOL then
+        RecordXP(sender, tonumber(a) or 0, tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0)
+        UpdateDisplay()
     end
 end
 
@@ -231,7 +317,15 @@ local function FormatProgress(info)
     return string.format("%.1f%%", info.cur / info.max * 100)
 end
 
-local function SetProgress(bar, info)
+-- Text for a member we have no XP for: no addon, or a version that can't share with ours.
+local function NoDataText(name)
+    local ver = versions[name]
+    if ver and ver.proto < PROTOCOL then return "|cffff8040old version|r" end
+    if ver and ver.proto > PROTOCOL then return "|cffff8040newer version|r" end
+    return "|cff808080no addon|r"
+end
+
+local function SetProgress(bar, info, name)
     if info and info.max > 0 then
         bar:SetMinMaxValues(0, info.max)
         bar:SetValue(info.cur)
@@ -243,7 +337,7 @@ local function SetProgress(bar, info)
         bar.rested:SetMinMaxValues(0, 1)
         bar.rested:SetValue(0)
     end
-    bar.value:SetText(FormatProgress(info) or "|cff808080no addon|r")
+    bar.value:SetText(FormatProgress(info) or NoDataText(name))
     bar.rested:Show()
 end
 
@@ -254,7 +348,8 @@ function UpdateDisplay()
         for i = 1, MAX_PARTY do
             local unit = "party" .. i
             if UnitExists(unit) then
-                local info = data[UnitFullName(unit)]
+                local name = UnitFullName(unit)
+                local info = data[name]
                 local host, style
                 if GroupeeDB.attach ~= false then
                     host, style = FindPartyFrame(unit, i)
@@ -262,13 +357,13 @@ function UpdateDisplay()
 
                 if host then
                     usedHosts[host] = true
-                    SetProgress(GetAttachedBar(host, style), info)
+                    SetProgress(GetAttachedBar(host, style), info, name)
                 else
                     shown = shown + 1
                     local bar = bars[shown] or CreateBar(shown)
                     local level = info and info.level or UnitLevel(unit)
                     bar.name:SetText(string.format("%s |cffffd100%d|r", ClassColoredName(unit), level))
-                    SetProgress(bar, info)
+                    SetProgress(bar, info, name)
                 end
             end
         end
@@ -300,19 +395,43 @@ local function RestorePosition()
 end
 
 ---------------------------------------------------------------------------
--- Tooltip: add "XP: 45.2%" when hovering a grouped player with the addon
+-- Tooltip: add "XP: 45.2%" and "XP/hour: 12.3k, level in 42m" when hovering
+-- a grouped player with the addon
 ---------------------------------------------------------------------------
+
+-- 950 -> "950", 12345 -> "12.3k", 1234567 -> "1.2M"
+local function FormatNumber(n)
+    if n >= 1e6 then return string.format("%.1fM", n / 1e6) end
+    if n >= 1e3 then return string.format("%.1fk", n / 1e3) end
+    return string.format("%d", n)
+end
+
+-- 300 -> "5m", 3900 -> "1h 05m"
+local function FormatDuration(seconds)
+    local minutes = math.max(1, math.ceil(seconds / 60))
+    if minutes < 60 then return minutes .. "m" end
+    return string.format("%dh %02dm", math.floor(minutes / 60), minutes % 60)
+end
 
 local function OnTooltipSetUnit(tooltip)
     local _, unit = tooltip:GetUnit()
     if not unit or not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then return end
-    local info = data[UnitFullName(unit)]
+    local name = UnitFullName(unit)
+    local info = data[name]
     local text = FormatProgress(info)
     if text then
         if info.max > 0 and info.rested > 0 then
             text = string.format("%s |cff4080ff(+%.0f%% rested)|r", text, info.rested / info.max * 100)
         end
         tooltip:AddLine("XP: " .. text, 0.8, 0.5, 1)
+        local rate = info.max > 0 and XPPerHour(info)
+        if rate and rate > 0 then
+            tooltip:AddLine(string.format("XP/hour: %s, level in %s", FormatNumber(rate),
+                FormatDuration((info.max - info.cur) / rate * 3600)), 0.8, 0.5, 1)
+        end
+        tooltip:Show()
+    elseif versions[name] and versions[name].proto ~= PROTOCOL then
+        tooltip:AddLine("Groupee: " .. NoDataText(name) .. " (" .. versions[name].version .. ")", 0.8, 0.5, 1)
         tooltip:Show()
     end
 end
@@ -350,11 +469,11 @@ events:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- Covers login and /reload: ask the group to resend, and share ours.
         if IsInGroup() then Send("REQ:" .. PROTOCOL) end
-        QueueSendXP()
+        QueueSendXP(true)
         UpdateDisplay()
     elseif event == "GROUP_ROSTER_UPDATE" then
         -- Every member sees this when someone joins, so each one resends.
-        QueueSendXP()
+        QueueSendXP(true)
         UpdateDisplay()
         -- The default party frames may reassign units after we run; refresh again.
         C_Timer.After(0.2, UpdateDisplay)
@@ -398,9 +517,27 @@ SlashCmdList.GROUPEE = function(msg)
         print("Groupee: bars shown in a separate window.")
     elseif msg == "sync" then
         if IsInGroup() then Send("REQ:" .. PROTOCOL) end
-        QueueSendXP()
+        QueueSendXP(true)
+    elseif msg == "version" then
+        print("Groupee " .. VERSION)
+        for i = 1, MAX_PARTY do
+            local unit = "party" .. i
+            if UnitExists(unit) then
+                local name = UnitFullName(unit)
+                local ver = versions[name]
+                local text
+                if ver then
+                    text = ver.version .. (ver.proto ~= PROTOCOL and " (can't share XP)" or "")
+                elseif data[name] then
+                    text = "0.2.0 or older"
+                else
+                    text = "not installed"
+                end
+                print(string.format("  %s: %s", ClassColoredName(unit), text))
+            end
+        end
     else
-        print("Groupee commands: /groupee attach | detach | lock | unlock | reset | show | hide | sync")
+        print("Groupee commands: /groupee attach | detach | lock | unlock | reset | show | hide | sync | version")
     end
 end
 

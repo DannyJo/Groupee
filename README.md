@@ -8,10 +8,11 @@ Groupee shows the XP progress of everyone in your party who also runs the addon,
 
 - **XP bars on the party frames.** A thin bar under each party member's mana bar shows their XP. On raid-style party frames it is a strip along the top edge.
 - **Separate window.** If you prefer, the bars can sit in a small movable window instead, with each member's name in class color and their level.
-- **Tooltips.** Hovering a party member shows their XP percentage and any rested XP.
+- **Tooltips.** Hovering a party member shows their XP percentage, any rested XP, and their XP per hour with an estimate of when they'll level. XP per hour is averaged over the last 10 minutes and appears after watching a member for 3 minutes.
+- **Version check.** Groupee tells you in chat when someone in your group has a newer version, or one that can't share XP with yours.
 - **Minimap button.** Groupee has an entry in the addon compartment dropdown on the minimap.
 
-Party members without Groupee show as "no addon". Players at max level show "Max level".
+Party members without Groupee show as "no addon", and those whose version can't share XP with yours show as "old version" or "newer version". Players at max level show "Max level".
 
 ## Installation
 
@@ -44,6 +45,7 @@ Join a party with someone else who runs Groupee. Their XP appears automatically 
 | `/groupee show` | Show Groupee |
 | `/groupee hide` | Hide Groupee |
 | `/groupee sync` | Ask the party to resend their XP |
+| `/groupee version` | Show your Groupee version and your party members' versions |
 
 ## Notes
 
