@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  luacheck:
+    name: Luacheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: nebularg/actions-luacheck@v1
+        with:
+          files: '.'
+          args: '--no-color -q'
+
+  toc:
+    name: TOC and changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Files listed in the TOC exist
+        run: |
+          status=0
+          while IFS= read -r line; do
+            line="${line%$'\r'}"
+            [[ -z "$line" || "$line" == "#"* ]] && continue
+            file="Groupee/${line//\\//}"
+            if [[ ! -f "$file" ]]; then
+              echo "::error file=Groupee/Groupee.toc::$file is listed in the TOC but does not exist"
+              status=1
+            fi
+          done < Groupee/Groupee.toc
+          exit $status
+      - name: TOC version has a changelog entry
+        run: |
+          version="$(sed -n 's/^## Version: *//p' Groupee/Groupee.toc | tr -d '\r')"
+          if ! grep -q "^## \[$version\]" Groupee/CHANGELOG.md; then
+            echo "::error file=Groupee/CHANGELOG.md::No changelog entry for version $version"
+            exit 1
+          fi

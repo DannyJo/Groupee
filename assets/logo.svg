@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1d4a"/>
+      <stop offset="1" stop-color="#0e0a1c"/>
+    </linearGradient>
+    <linearGradient id="xp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c54ae6"/>
+      <stop offset="1" stop-color="#7b1a9e"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3d27a"/>
+      <stop offset="0.5" stop-color="#b8892f"/>
+      <stop offset="1" stop-color="#f0cd70"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="488" height="488" rx="64" fill="url(#bg)" stroke="url(#gold)" stroke-width="10"/>
+  <rect x="26" y="26" width="460" height="460" rx="52" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="3"/>
+  <g>
+    <circle cx="104" cy="136" r="31" fill="#1a1330" stroke="#C69B6D" stroke-width="5"/>
+    <g clip-path="url(#p0)" fill="#C69B6D">
+      <circle cx="104" cy="129" r="10"/>
+      <ellipse cx="104" cy="158" rx="19" ry="15"/>
+    </g>
+    <clipPath id="p0"><circle cx="104" cy="136" r="26"/></clipPath>
+    <rect x="172" y="116.0" width="272" height="40" rx="9" fill="#120d22" stroke="#4b3c6e" stroke-width="3"/>
+    <g clip-path="url(#b0)">
+      <rect x="172" y="116.0" width="244.8" height="40" fill="#2f6fe0" opacity="0.55"/>
+      <rect x="172" y="116.0" width="212.2" height="40" fill="url(#xp)"/>
+      <rect x="172" y="116.0" width="272" height="20.0" fill="#fff" opacity="0.10"/>
+    </g>
+    <clipPath id="b0"><rect x="175" y="119.0" width="266" height="34" rx="6"/></clipPath>
+  </g>
+  <g>
+    <circle cx="104" cy="216" r="31" fill="#1a1330" stroke="#3FC7EB" stroke-width="5"/>
+    <g clip-path="url(#p1)" fill="#3FC7EB">
+      <circle cx="104" cy="209" r="10"/>
+      <ellipse cx="104" cy="238" rx="19" ry="15"/>
+    </g>
+    <clipPath id="p1"><circle cx="104" cy="216" r="26"/></clipPath>
+    <rect x="172" y="196.0" width="272" height="40" rx="9" fill="#120d22" stroke="#4b3c6e" stroke-width="3"/>
+    <g clip-path="url(#b1)">
+      <rect x="172" y="196.0" width="195.8" height="40" fill="#2f6fe0" opacity="0.55"/>
+      <rect x="172" y="196.0" width="141.4" height="40" fill="url(#xp)"/>
+      <rect x="172" y="196.0" width="272" height="20.0" fill="#fff" opacity="0.10"/>
+    </g>
+    <clipPath id="b1"><rect x="175" y="199.0" width="266" height="34" rx="6"/></clipPath>
+  </g>
+  <g>
+    <circle cx="104" cy="296" r="31" fill="#1a1330" stroke="#F48CBA" stroke-width="5"/>
+    <g clip-path="url(#p2)" fill="#F48CBA">
+      <circle cx="104" cy="289" r="10"/>
+      <ellipse cx="104" cy="318" rx="19" ry="15"/>
+    </g>
+    <clipPath id="p2"><circle cx="104" cy="296" r="26"/></clipPath>
+    <rect x="172" y="276.0" width="272" height="40" rx="9" fill="#120d22" stroke="#4b3c6e" stroke-width="3"/>
+    <g clip-path="url(#b2)">
+      <rect x="172" y="276.0" width="92.5" height="40" fill="#2f6fe0" opacity="0.55"/>
+      <rect x="172" y="276.0" width="92.5" height="40" fill="url(#xp)"/>
+      <rect x="172" y="276.0" width="272" height="20.0" fill="#fff" opacity="0.10"/>
+    </g>
+    <clipPath id="b2"><rect x="175" y="279.0" width="266" height="34" rx="6"/></clipPath>
+  </g>
+  <g>
+    <circle cx="104" cy="376" r="31" fill="#1a1330" stroke="#FFF468" stroke-width="5"/>
+    <g clip-path="url(#p3)" fill="#FFF468">
+      <circle cx="104" cy="369" r="10"/>
+      <ellipse cx="104" cy="398" rx="19" ry="15"/>
+    </g>
+    <clipPath id="p3"><circle cx="104" cy="376" r="26"/></clipPath>
+    <rect x="172" y="356.0" width="272" height="40" rx="9" fill="#120d22" stroke="#4b3c6e" stroke-width="3"/>
+    <g clip-path="url(#b3)">
+      <rect x="172" y="356.0" width="217.6" height="40" fill="#2f6fe0" opacity="0.55"/>
+      <rect x="172" y="356.0" width="174.1" height="40" fill="url(#xp)"/>
+      <rect x="172" y="356.0" width="272" height="20.0" fill="#fff" opacity="0.10"/>
+    </g>
+    <clipPath id="b3"><rect x="175" y="359.0" width="266" height="34" rx="6"/></clipPath>
+  </g>
+</svg>

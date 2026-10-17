@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tag matches TOC version
+        id: version
+        run: |
+          version="$(sed -n 's/^## Version: *//p' Groupee/Groupee.toc | tr -d '\r')"
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match TOC version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Release notes from changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' Groupee/CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "::error file=Groupee/CHANGELOG.md::No changelog entry for version $VERSION"
+            exit 1
+          fi
+
+      - name: Package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .release
+          zip -r ".release/Groupee-$VERSION.zip" Groupee
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" ".release/Groupee-$VERSION.zip" \
+            --title "Groupee $VERSION" --notes-file notes.md

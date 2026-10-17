@@ -1,0 +1,13 @@
+## Interface: 16001, 120100, 120105
+## Title: Groupee
+## Notes: Share your XP bar with your party members.
+## Author: Daniel Johansson
+## Version: 0.2.0
+## IconTexture: Interface\Icons\Spell_Holy_PrayerOfFortitude
+## Category: Social
+## AddonCompartmentFunc: Groupee_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Groupee_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Groupee_OnAddonCompartmentLeave
+## SavedVariables: GroupeeDB
+
+Groupee.lua
