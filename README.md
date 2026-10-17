@@ -53,7 +53,7 @@ Join a party with someone else who runs Groupee. Their XP appears automatically 
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](Groupee/CHANGELOG.md).
 
 ## License
 
