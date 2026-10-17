@@ -10,3 +10,4 @@ desktop.ini
 # Packaged releases
 *.zip
 .release/
+RELEASE_NOTES.md

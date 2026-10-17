@@ -4,10 +4,13 @@ package-as: Groupee
 move-folders:
   Groupee/Groupee: Groupee
 
+# Written by the release workflow from Groupee/CHANGELOG.md. It must live outside
+# Groupee/: packager v2 loses a changelog path inside a move-folders folder.
 manual-changelog:
-  filename: Groupee/CHANGELOG.md
+  filename: RELEASE_NOTES.md
   markup-type: markdown
 
 ignore:
   - assets
   - LICENSE
+  - RELEASE_NOTES.md

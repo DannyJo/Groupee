@@ -24,6 +24,19 @@ jobs:
             exit 1
           fi
 
+      - name: Release notes from changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' Groupee/CHANGELOG.md > RELEASE_NOTES.md
+          if [[ ! -s RELEASE_NOTES.md ]]; then
+            echo "::error file=Groupee/CHANGELOG.md::No changelog entry for version $version"
+            exit 1
+          fi
+
       # Packages per .pkgmeta, then uploads to CurseForge (X-Curse-Project-ID in
       # the TOC) and creates the GitHub release with the zip attached.
       - uses: BigWigsMods/packager@v2
