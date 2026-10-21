@@ -166,10 +166,38 @@ local function OnVersion(sender, proto, version)
     UpdateDisplay()
 end
 
+-- Whether an addon message sender names this unit. Clients don't agree on the
+-- sender format ("Name-Realm", "Name Realm" or just "Name"), so try each.
+local function SenderIsUnit(sender, unit)
+    local name, realm = UnitName(unit)
+    if not name then return false end
+    if sender == name then return true end
+    for _, r in ipairs({ realm or "", GetRealm(), (GetRealmName()) }) do
+        if r ~= "" and (sender == name .. "-" .. r or sender == name .. " " .. r) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Resolves a sender to the same key UpdateDisplay uses for that member, or nil
+-- if they aren't in our group.
+local function SenderName(sender)
+    local prefix, count = "party", MAX_PARTY
+    if IsInRaid() then prefix, count = "raid", 40 end
+    for i = 1, count do
+        local unit = prefix .. i
+        if UnitExists(unit) and SenderIsUnit(sender, unit) then
+            return UnitFullName(unit)
+        end
+    end
+end
+
 local function OnAddonMessage(prefix, msg, _, sender)
     if prefix ~= PREFIX then return end
-    sender = FullName(sender)
-    if sender == UnitFullName("player") then return end
+    if SenderIsUnit(sender, "player") then return end
+    sender = SenderName(sender)
+    if not sender then return end
 
     local kind, proto, a, b, c, d = strsplit(":", msg)
     proto = tonumber(proto)
